@@ -1,0 +1,10 @@
+2023-05-16 14:02:06,307:INFO: Imported the model from 'src.training.dcc_tf'.
+2023-05-16 14:02:06,307:INFO: Loading train dataset: fg_dir=data/FSDSoundScapes/FSDKaggle2018/train bg_dir=data/FSDSoundScapes/TAU-acoustic-sounds/TAU-urban-acoustic-scenes-2019-development
+2023-05-16 14:02:07,043:INFO: Loaded train dataset at data/FSDSoundScapes containing 50000 elements
+2023-05-16 14:02:07,043:INFO: Loading val dataset: fg_dir=data/FSDSoundScapes/FSDKaggle2018/val bg_dir=data/FSDSoundScapes/TAU-acoustic-sounds/TAU-urban-acoustic-scenes-2019-development
+2023-05-16 14:02:07,138:INFO: Loaded test dataset at data/FSDSoundScapes containing 5000 elements
+2023-05-16 14:02:07,247:INFO: Using CUDA devices: [0]
+2023-05-16 14:02:07,831:INFO: Initializing optimizer with {'lr': 0.0005, 'weight_decay': 0.0}
+2023-05-16 14:02:07,831:INFO: Learning rates initialized to: {group 0: params=1.61230M lr=5.0E-04}
+2023-05-16 14:02:07,831:INFO: Initialized LR scheduler with params: fix_lr_epochs=50 {'mode': 'max', 'factor': 0.1, 'patience': 5, 'min_lr': 5e-06, 'threshold': 0.1, 'threshold_mode': 'abs'}
+2023-05-16 14:02:07,831:INFO: Epoch 0:
