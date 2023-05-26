@@ -31,7 +31,7 @@ def train_epoch(model: nn.Module, device: torch.device,
                 optimizer: optim.Optimizer,
                 train_loader: torch.utils.data.dataloader.DataLoader,
                 n_items: int, epoch: int = 0,
-                writer: SummaryWriter = None, data_params = None) -> float:
+                writer: SummaryWriter = None, data_params = None, mode='train') -> float:
 
     """
     Train a single epoch.
@@ -53,7 +53,7 @@ def train_epoch(model: nn.Module, device: torch.device,
             optimizer.zero_grad()
 
             # Run through the model
-            output = model(mixed, label)
+            output = model(mixed, label, mode=mode)
 
             # Compute loss
             loss = network.loss(output, gt)
@@ -113,7 +113,9 @@ def train(args: argparse.Namespace):
     data_val = Dataset(**args.val_data)
     logging.info("Loaded test dataset at %s containing %d elements" %
                  (args.val_data['input_dir'], len(data_val)))
-
+    
+    print('args train_data', args.train_data)
+    
     # Set up the device and workers.
     use_cuda = args.use_cuda and torch.cuda.is_available()
     if use_cuda:
@@ -195,13 +197,15 @@ def train(args: argparse.Namespace):
             curr_train_metrics = train_epoch(model, device, optimizer,
                                              train_loader, args.n_train_items,
                                              epoch=epoch, writer=args.writer,
-                                             data_params=args.train_data)
+                                             data_params=args.train_data,
+                                             mode='train')
             #raise KeyboardInterrupt
             curr_test_metrics = test_epoch(model, device, val_loader,
                                            args.n_test_items, network.loss,
                                            network.metrics, epoch=epoch,
                                            writer=args.writer,
-                                           data_params=args.val_data)
+                                           data_params=args.val_data,
+                                           mode='val')
             # LR scheduler
             if epoch >= args.fix_lr_epochs:
                 lr_scheduler.step(curr_test_metrics[base_metric])

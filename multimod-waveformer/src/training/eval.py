@@ -29,7 +29,7 @@ def test_epoch(model: nn.Module, device: torch.device,
                test_loader: torch.utils.data.dataloader.DataLoader,
                n_items: int, loss_fn, metrics_fn,
                profiling: bool = False, epoch: int = 0,
-               writer: SummaryWriter = None, data_params = None) -> float:
+               writer: SummaryWriter = None, data_params = None, mode='test') -> float:
     """
     Evaluate the network.
     """
@@ -47,7 +47,7 @@ def test_epoch(model: nn.Module, device: torch.device,
             with profile(activities=[ProfilerActivity.CPU],
                          record_shapes=True) as prof:
                 with record_function("model_inference"):
-                    output = model(mixed, label)
+                    output = model(mixed, label, mode=mode)
             if profiling:
                 logging.info(
                     prof.key_averages().table(sort_by="self_cpu_time_total",
@@ -151,7 +151,7 @@ def evaluate(network, args: argparse.Namespace):
     try:
         return test_epoch(
             model, device, test_loader, args.n_items, network.loss,
-            network.metrics, args.profiling)
+            network.metrics, args.profiling, mode="test")
     except KeyboardInterrupt:
         print("Interrupted")
     except Exception as _:  # pylint: disable=broad-except

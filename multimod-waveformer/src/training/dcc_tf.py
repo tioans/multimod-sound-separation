@@ -17,6 +17,10 @@ from torchmetrics.functional import(
 
 from speechbrain.lobes.models.transformer.Transformer import PositionalEncoding
 
+# Imagebind-related imports
+import data_imagebind
+import os, random
+
 
 def mod_pad(x, chunk_size, pad):
     # Mod pad the input to perform integer number of
@@ -362,8 +366,7 @@ class MaskNet(nn.Module):
 
     
 class Net(nn.Module):
-    
-    
+        
     def __init__(self, label_len, L=8,
                  enc_dim=512, num_enc_layers=10,
                  dec_dim=256, dec_buf_len=100, num_dec_layers=2,
@@ -375,10 +378,14 @@ class Net(nn.Module):
         self.enc_dim = enc_dim
         self.lookahead = lookahead
         
-        # load the embedding dict
-        self.embeddings = self.load_embeddings()
+        # Custom embeddings
+        self.embeddings = self.load_embeddings()  # load the embedding dict
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        # self.embedding_model = self.load_embedding_model()  # load the pretrained model
+        
+        
+        # print("DEVICE: ", self.device)
+        
         # Input conv to convert input audio to a latent representation
         kernel_size = 3 * L if lookahead else L
         self.in_conv = nn.Sequential(
@@ -419,7 +426,51 @@ class Net(nn.Module):
                 stride=L,
                 padding=out_buf_len * L, bias=False),
             nn.Tanh())
-
+        
+        self.TARGETS = [
+        "Acoustic_guitar",
+        "Applause",
+        "Bark",
+        "Bass_drum",
+        "Burping_or_eructation",
+        "Bus",
+        "Cello",
+        "Chime",
+        "Clarinet",
+        "Computer_keyboard",
+        "Cough",
+        "Cowbell",
+        "Double_bass",
+        "Drawer_open_or_close",
+        "Electric_piano",
+        "Fart",
+        "Finger_snapping",
+        "Fireworks",
+        "Flute",
+        "Glockenspiel",
+        "Gong",
+        "Gunshot_or_gunfire",
+        "Harmonica",
+        "Hi-hat",
+        "Keys_jangling",
+        "Knock",
+        "Laughter",
+        "Meow",
+        "Microwave_oven",
+        "Oboe",
+        "Saxophone",
+        "Scissors",
+        "Shatter",
+        "Snare_drum",
+        "Squeak",
+        "Tambourine",
+        "Tearing",
+        "Telephone",
+        "Trumpet",
+        "Violin_or_fiddle",
+        "Writing",
+        ]
+        
         
     def init_buffers(self, batch_size, device):
         enc_buf = self.mask_gen.encoder.init_ctx_buf(batch_size, device)
@@ -429,7 +480,7 @@ class Net(nn.Module):
         return enc_buf, dec_buf, out_buf
     
     
-    def load_embeddings(self, path='emb-imagebind-orig.pickle'):
+    def load_embeddings(self, path='emb-imagebind-audio.pickle'):
         """ Function which reads a precomputed file/dict from disk with embeddings for each label. """
     
         # Load precomputed embeddings
@@ -438,44 +489,96 @@ class Net(nn.Module):
 
         return embeddings
 
-
-    def get_embedding(self, index, modality='text'):
+    
+    def load_embedding_model(self, path='imagebind.pickle'):
+        """ Function which loads a pretrained torch model from disk. """
+        
+        model_path = os.path.join(os.getcwd(), path)
+        print(model_path)
+                             
+        # Load pretrained model
+        with open(path, 'rb') as handle:
+            model = pickle.load(handle)
+        
+        model.eval()
+        model.to(self.device)
+        
+        return model
+    
+    
+    def get_embedding(self, index, mode, full=False):
         """ Function which returns the corresponding embedding array for a 1D one-hot encoded array. """
+        
+        embedding = self.embeddings[mode][index]
+        
+        if full:
+            # return the full size of embeddings for this label
+            return embedding
+        else:
+            # return one random embedding for this label 
+            return embedding[torch.randint(high=embedding.shape[0], size=(1,))]
 
-        return self.embeddings[modality][index]
+    
+    def compute_embedding(self, index, mode, modality='audio'):
+        """ Function which returns the corresponding embedding array for a 1D one-hot encoded array. """
+        
+        # print("Mode: ", mode)
+        
+        if str.lower(mode) == 'test':
+            mode = 'eval'
+        
+        curr_label = self.TARGETS[index]  # current label string
+        folder_path = os.path.join(os.getcwd(), "data", "FSDSoundScapes", "FSDKaggle2018", str.lower(mode), str(curr_label))
+        audio_path = os.path.join(folder_path, random.choice(os.listdir(folder_path)))  # choose one of the files
+        
+        # print("AUDIO PATH: ", audio_path)
+        
+        # Load data
+        inputs = {
+            modality: data_imagebind.load_and_transform_audio_data([audio_path], self.device)
+        }
+        
+        # calculate embeddings
+        with torch.no_grad():
+            embedding = self.embedding_model(inputs)
+        
+        return embedding[modality][0]
+    
 
-
-    def one_hot_to_embeddings(self, one_hot_array, emb_dim=1024):
+    def one_hot_to_embeddings(self, one_hot_array, mode, emb_dim=1024, online=False):
         """ Function which converts a BxM array into a Bxenc_dim array. """
 
         # initialize new embeddings array
-        embeddings = np.empty((one_hot_array.shape[0], emb_dim))
-                
+        embeddings = torch.empty((one_hot_array.shape[0], emb_dim), dtype=torch.float32)
+        
         # For each observation in the array
         for i, row in enumerate(one_hot_array):
-            # get indeces where the value is 1
+            # get indices where the value is 1
             label_idx = np.where(row==1)[0]
             
-            # print("LABEL 1s IDx: ", label_idx)
             
-            # get the corresponding embeddings
-            row_embeddings = [self.get_embedding(idx) for idx in label_idx]
+            # if embeddings should be computed during training or not
+            if online:
+                row_embeddings = [self.compute_embedding(idx, mode) for idx in label_idx]
+            else:
+                # get the corresponding embeddings
+                row_embeddings = [self.get_embedding(idx, mode, full=False) for idx in label_idx]
                         
-            # average embeddings
             if len(row_embeddings) == 1:
                 # case with single target
-                embeddings[i] = np.array(row_embeddings[0])
+                # embeddings[i] = np.array(row_embeddings[0])
+                embeddings[i] = row_embeddings[0]
             elif len(row_embeddings) > 1:
                 # case with multiple targets
-                embeddings[i] = np.mean(row_embeddings, axis=0)
+                embeddings[i] = torch.mean(torch.stack(row_embeddings, dim=0), axis=0)
             else:
                 # case with no target
-                embeddings[i] = np.ones(1, emb_dim)
+                embeddings[i] = torch.ones(1, emb_dim)
                 
-        return torch.tensor(embeddings, dtype=torch.float32)
+        return embeddings
     
     
-    def forward(self, x, label, init_enc_buf=None, init_dec_buf=None,
+    def forward(self, x, label, mode, init_enc_buf=None, init_dec_buf=None,
                 init_out_buf=None, pad=True):
         """
         Extracts the audio corresponding to the `label` in the given
@@ -514,7 +617,7 @@ class Net(nn.Module):
         # if the dim is equal to the dim output from the embedding model
         # print("LABEL SHAPE: ", label.shape[1])
         if label.shape[1] != 1024:
-            label = self.one_hot_to_embeddings(label.cpu()).to(self.device)
+            label = self.one_hot_to_embeddings(label.cpu(), mode, online=False).to(self.device)
         
         # Generate label embedding
         l = self.label_embedding(label) # [B, label_len] --> [B, channels]
