@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # print("QUERY SHAPE: ", query.shape)
     
     with torch.inference_mode():
-        output = model(mixture.to(device), query.to(device)).squeeze(0).cpu()
+        output = model(mixture.to(device), query.to(device), mode="test").squeeze(0).cpu()
     if fs != 44100:
         output = torchaudio.functional.resample(output, orig_freq=44100, new_freq=fs)
     print("Inference done. Saving output audio to %s" % args.output)

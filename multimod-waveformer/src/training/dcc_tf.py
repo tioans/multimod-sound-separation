@@ -480,7 +480,7 @@ class Net(nn.Module):
         return enc_buf, dec_buf, out_buf
     
     
-    def load_embeddings(self, path='emb-imagebind-audio.pickle'):
+    def load_embeddings(self, path='emb-imagebind-audio-cv.pickle'):
         """ Function which reads a precomputed file/dict from disk with embeddings for each label. """
     
         # Load precomputed embeddings

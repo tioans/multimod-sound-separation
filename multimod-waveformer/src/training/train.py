@@ -24,8 +24,11 @@ from torchmetrics.functional import(
 
 from src.helpers import utils
 from src.training.eval import test_epoch
-from src.training.synthetic_dataset import FSDSoundScapesDataset as Dataset
-from src.training.synthetic_dataset import tensorboard_add_sample
+# from src.training.synthetic_dataset import FSDSoundScapesDataset as Dataset
+# from src.training.synthetic_dataset import tensorboard_add_sample
+
+from src.training.custom_dataset import CVSoundScapesDataset as Dataset
+from src.training.custom_dataset import tensorboard_add_sample
 
 def train_epoch(model: nn.Module, device: torch.device,
                 optimizer: optim.Optimizer,

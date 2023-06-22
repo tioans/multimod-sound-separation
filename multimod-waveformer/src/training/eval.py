@@ -22,8 +22,11 @@ from torchmetrics.functional import(
     scale_invariant_signal_distortion_ratio as si_sdr)
 
 from src.helpers import utils
-from src.training.synthetic_dataset import FSDSoundScapesDataset, tensorboard_add_metrics
-from src.training.synthetic_dataset import tensorboard_add_sample
+# from src.training.synthetic_dataset import FSDSoundScapesDataset, tensorboard_add_metrics
+# from src.training.synthetic_dataset import tensorboard_add_sample
+
+from src.training.custom_dataset import CVSoundScapesDataset, tensorboard_add_metrics
+from src.training.custom_dataset import tensorboard_add_sample
 
 def test_epoch(model: nn.Module, device: torch.device,
                test_loader: torch.utils.data.dataloader.DataLoader,
@@ -91,9 +94,8 @@ def evaluate(network, args: argparse.Namespace):
     """
     Evaluate the model on a given dataset.
     """
-
     # Load dataset
-    data_test = FSDSoundScapesDataset(**args.test_data)
+    data_test = CVSoundScapesDataset(**args.test_data)
     logging.info("Loaded test dataset at %s containing %d elements" %
                  (args.test_data['input_dir'], len(data_test)))
  
