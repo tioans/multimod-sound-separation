@@ -47,16 +47,16 @@ def train_epoch(model: nn.Module, device: torch.device,
     metrics = {}
 
     with tqdm(total=len(train_loader), desc='Train', ncols=100) as t:
-        for batch_idx, (mixed, label, gt) in enumerate(train_loader):
+        for batch_idx, (mixed, label, gt, fg_audio_paths) in enumerate(train_loader):
             mixed = mixed.to(device)
             label = label.to(device)
             gt = gt.to(device)
 
             # Reset grad
             optimizer.zero_grad()
-
+            
             # Run through the model
-            output = model(mixed, label, mode=mode)
+            output = model(mixed, label, fg_audio_paths, mode=mode)
 
             # Compute loss
             loss = network.loss(output, gt)

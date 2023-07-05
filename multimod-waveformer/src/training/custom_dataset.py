@@ -80,12 +80,18 @@ class CVSoundScapesDataset(torch.utils.data.Dataset):  # type: ignore
     def __getitem__(self, idx):
         sample_path = self.samples[idx]
         jamsfile = os.path.join(sample_path, 'mixture.jams')
-        
+    
         # print('SAMPLE PATH: ', jamsfile)
         # print('fg_dir: ', self.fg_dir)
         # print('bg_dir: ', self.bg_dir)
         mixture, jams, ann_list, event_audio_list = scaper.generate_from_jams(
             jamsfile, fg_path=self.fg_dir, bg_path=self.bg_dir)
+        
+        # extract the file paths of the foreground events
+        # print('JAM: ', jams['annotations'][0]['data'][0][2]['source_file'])
+        fg_audio_paths = [os.path.basename(obs[2]['source_file']) for obs in jams['annotations'][0]['data'] 
+                          if obs[2]['role'] == 'foreground']
+        
         isolated_events = {}
         for e, a in zip(ann_list, event_audio_list[1:]):
             # 0th event is background
@@ -97,7 +103,7 @@ class CVSoundScapesDataset(torch.utils.data.Dataset):  # type: ignore
         mixture = self.resampler(mixture.to(torch.float))
 
         if self.dset == 'train':
-            labels = random.sample(gt_events, randrange(1,self.max_num_targets+1))
+            labels = random.sample(gt_events, randrange(1, self.max_num_targets + 1))
         elif self.dset == 'val':
             labels = gt_events[:idx%self.max_num_targets+1]
         elif self.dset == 'test':
@@ -110,7 +116,7 @@ class CVSoundScapesDataset(torch.utils.data.Dataset):  # type: ignore
             gt = gt + torch.from_numpy(isolated_events[l]).permute(1, 0)
         gt = self.resampler(gt.to(torch.float))
 
-        return mixture, label_vector, gt #, jams
+        return mixture, label_vector, gt, fg_audio_paths #, jams
 
     
 def tensorboard_add_sample(writer, tag, sample, step, params):

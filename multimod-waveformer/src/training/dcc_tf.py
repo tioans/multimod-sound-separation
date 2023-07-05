@@ -379,7 +379,7 @@ class Net(nn.Module):
         self.lookahead = lookahead
         
         # Custom embeddings
-        self.embeddings = self.load_embeddings()  # load the embedding dict
+        self.embeddings = self.load_embeddings('emb-imagebind-audio-cv-split-file-tens.pickle')  # load the embedding dict
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.embedding_model = self.load_embedding_model()  # load the pretrained model
         
@@ -480,7 +480,7 @@ class Net(nn.Module):
         return enc_buf, dec_buf, out_buf
     
     
-    def load_embeddings(self, path='emb-imagebind-audio-cv.pickle'):
+    def load_embeddings(self, path):
         """ Function which reads a precomputed file/dict from disk with embeddings for each label. """
     
         # Load precomputed embeddings
@@ -506,7 +506,7 @@ class Net(nn.Module):
         return model
     
     
-    def get_embedding(self, index, mode, full=False):
+    def get_embedding_per_label(self, index, mode, full=False):
         """ Function which returns the corresponding embedding array for a 1D one-hot encoded array. """
         
         embedding = self.embeddings[mode][index]
@@ -517,7 +517,13 @@ class Net(nn.Module):
         else:
             # return one random embedding for this label 
             return embedding[torch.randint(high=embedding.shape[0], size=(1,))]
-
+    
+    
+    def get_embedding_per_file(self, file_path, mode):
+        """ Function which returns the corresponding embedding array for a 1D one-hot encoded array given the file name. """
+        
+        return self.embeddings[mode][file_path]
+        
     
     def compute_embedding(self, index, mode, modality='audio'):
         """ Function which returns the corresponding embedding array for a 1D one-hot encoded array. """
@@ -545,7 +551,7 @@ class Net(nn.Module):
         return embedding[modality][0]
     
 
-    def one_hot_to_embeddings(self, one_hot_array, mode, emb_dim=1024, online=False):
+    def one_hot_to_embeddings(self, one_hot_array, mode, fg_audio_paths=False, emb_dim=1024, online=False):
         """ Function which converts a BxM array into a Bxenc_dim array. """
 
         # initialize new embeddings array
@@ -555,15 +561,17 @@ class Net(nn.Module):
         for i, row in enumerate(one_hot_array):
             # get indices where the value is 1
             label_idx = np.where(row==1)[0]
-            
-            
+
             # if embeddings should be computed during training or not
             if online:
                 row_embeddings = [self.compute_embedding(idx, mode) for idx in label_idx]
+            elif fg_audio_paths:
+                # get the corresponding embeddings per file name  # SHOULD BE CHECKED FOR MULTI LABEL CASE!
+                row_embeddings = [self.get_embedding_per_file(file_path=fg_audio_paths[0][i], mode=mode) for _ in label_idx]
             else:
-                # get the corresponding embeddings
-                row_embeddings = [self.get_embedding(idx, mode, full=False) for idx in label_idx]
-                        
+                # get the corresponding embeddings per label (old approach)
+                row_embeddings = [self.get_embedding_per_label(idx, mode, full=False) for idx in label_idx]
+            
             if len(row_embeddings) == 1:
                 # case with single target
                 # embeddings[i] = np.array(row_embeddings[0])
@@ -578,7 +586,7 @@ class Net(nn.Module):
         return embeddings
     
     
-    def forward(self, x, label, mode, init_enc_buf=None, init_dec_buf=None,
+    def forward(self, x, label, fg_audio_paths, mode, init_enc_buf=None, init_dec_buf=None,
                 init_out_buf=None, pad=True):
         """
         Extracts the audio corresponding to the `label` in the given
@@ -612,12 +620,14 @@ class Net(nn.Module):
 
         # Generate latent space representation of the input
         x = self.in_conv(x)
-
+        
         # Use precomputed embeddings instead of one-hot
         # if the dim is equal to the dim output from the embedding model
-        # print("LABEL SHAPE: ", label.shape[1])
+        # print("FILE_PATHS: ", fg_audio_paths)
+        # print("LABELS: ", label)
+        # print("SHAPES: ", len(fg_audio_paths[0]), label.shape)
         if label.shape[1] != 1024:
-            label = self.one_hot_to_embeddings(label.cpu(), mode, online=False).to(self.device)
+            label = self.one_hot_to_embeddings(label.cpu(), mode, fg_audio_paths, online=False).to(self.device)
         
         # Generate label embedding
         l = self.label_embedding(label) # [B, label_len] --> [B, channels]

@@ -40,7 +40,7 @@ def test_epoch(model: nn.Module, device: torch.device,
     metrics = {}
  
     with torch.no_grad():
-        for batch_idx, (mixed, label, gt) in \
+        for batch_idx, (mixed, label, gt, fg_audio_paths) in \
                 enumerate(tqdm(test_loader, desc='Test', ncols=100)):
             mixed = mixed.to(device)
             label = label.to(device)
@@ -50,7 +50,7 @@ def test_epoch(model: nn.Module, device: torch.device,
             with profile(activities=[ProfilerActivity.CPU],
                          record_shapes=True) as prof:
                 with record_function("model_inference"):
-                    output = model(mixed, label, mode=mode)
+                    output = model(mixed, label, fg_audio_paths, mode=mode)
             if profiling:
                 logging.info(
                     prof.key_averages().table(sort_by="self_cpu_time_total",
