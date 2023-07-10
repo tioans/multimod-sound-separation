@@ -379,7 +379,7 @@ class Net(nn.Module):
         self.lookahead = lookahead
         
         # Custom embeddings
-        self.embeddings = self.load_embeddings('emb-imagebind-audio-cv-split-file-tens.pickle')  # load the embedding dict
+        self.embeddings = self.load_embeddings('emb-imagebind-audio-cv-13-14-split-file-tens.pickle')  # load the embedding dict
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.embedding_model = self.load_embedding_model()  # load the pretrained model
         

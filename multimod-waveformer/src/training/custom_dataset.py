@@ -31,7 +31,7 @@ class CVSoundScapesDataset(torch.utils.data.Dataset):  # type: ignore
             "`dset` must be one of ['train', 'val', 'test']"
         self.dset = dset
         self.max_num_targets = max_num_targets
-        self.fg_dir = os.path.join(input_dir, 'CV-13-mini/%s' % dset)
+        self.fg_dir = os.path.join(input_dir, 'cv-files/%s' % dset)
         if dset in ['train', 'val']:
             self.bg_dir = os.path.join(
                 input_dir,
